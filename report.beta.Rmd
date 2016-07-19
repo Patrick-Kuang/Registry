@@ -1,0 +1,460 @@
+---
+title: "华西医院血液科住院患者登记登记数据库分析报告"
+author: "Pu Kuang"
+date: '`2016-07-13'
+output: html_document
+subtitle: （Interim Report）
+---
+
+### 前言
+
+2014年华西医院信息部门着手开始构建临床科研支撑系统（CSM平台），旨在通过构建数据库平台，联系HIS系统数据和科研数据。在该平台的基础上，我们根据我科临床科研工作特点，构建了住院患者登记数据库，旨在收集我科收治的初诊初治的血液病患者。该数据库基于WHO血液和淋巴系统肿瘤分类（2008年第4版）对疾病进行统一分类编码。单出于构建疾病分类方便的考虑，并非所有疾病都严格按照WHO分类执行。有以下疾病在划分疾病大类时做了适当调整: 
+
+* 混合细胞白血病没有单列为一个大类，而是归属于急性髓细胞白血病（AML）；
+* MPN/MDS和PDGF相关的MPN，因为相对罕见，都暂时归入了MPN里。相应的如慢性粒单核细胞白血病、慢性中性粒细胞白血病等疾病都被暂时划入了MPN中；
+
+经过1年多艰苦的建设，该数据库已经初具规模，并开始为科室同事的临床科研工作输出数据。从2016年7月开始，我们计划每3~6个月对数据库入组、患者收治情况进行常规汇总和分析，希望为科室同事的临床科研提供有力的数据支持。
+
+（本报告基于我院HIS系统数据，按季度更新，仅供临床科研参考。）
+
+```{r echo=FALSE}
+data <- read.csv("~/R/project/hemaregistery/data.csv",header = T, 
+                 stringsAsFactors=FALSE)
+library("lattice")
+library(knitr)
+library(reshape2)
+attach(data)
+```
+
+### 1. 总体进度
+
+从`r min(regdate)`到`r max(regdate)`, 共计纳入入院时间从 `r min(indate)` 到 `r max(indate)` 的 `r length(age)` 人次患者资料。如下图图1和图2所示。 （注：患者如果患有多种疾病，如：淋巴瘤合并噬血细胞综合症，可能被多次登记。）
+
+#### 图1.1 疾病登记的入组进度
+```{r, echo=FALSE, fig.height=4,fig.width=4}
+    regmonth <- format(as.Date(data$regdate),"%Y-%m")
+    count <- cumsum(table(regmonth))
+    barplot(count,
+            sub = "Figure 1.1",
+            ylim = c(0,4000),
+            cex.axis = 0.8,
+            cex.names = 0.8,
+            cex.sub = 0.8,
+            mar = c(2,2,0,2))
+    lines(count,col="red")
+```
+
+#### 图1.2 已入组记录的年份分布
+```{r, echo=FALSE, fig.height=4,fig.width=4}
+    data$inmonth <- format(as.Date(data$indate),"%Y-%m")
+    data$inyear <- format(as.Date(data$indate),"%Y")
+    patientdist <- table(data$inyear)
+    barplot(patientdist,
+            sub = "Figure 1.2",
+            cex.names = 0.9,
+            cex.axis = 0.8,
+            cex.sub = 0.8,
+            mar = c(2,2,0,2))
+ ```
+
+### 2. 现有病种构成
+根据入院患者所患疾病，我们将疾病种类分为8类，分别为：急性淋巴细胞白血病（ALL）、急性髓细胞白血病（AML）、霍奇金淋巴瘤（HL）、骨髓增生异常综合征（MDS）、骨髓增殖性肿瘤（MPN）、非霍奇金淋巴瘤（NHL）、NK/T细胞肿瘤（NKT）和非肿瘤性杂病（other）。而针对每个大类，我们又以WHO2008版作为血液肿瘤分类的蓝本，将每个分类中的疾病诊断尽量细化，为了编码和录入的方便，细化的过程既考虑的命名和编码系统的科学性，也考虑了临床实际工作的可操作性，因此仅把WHO分类中最常见的疾病加以规范编码和纳入。目前8个大类下入组病人情况见表2.1，每个大类细分疾病数量见表2.2-2.9。
+
+#### 表2.1：疾病病种构成
+```{r echo=FALSE}
+    catsum <- as.data.frame(table(catcode))
+    catsum$ratio <- round(catsum[,2]/length(catcode)*100,1)
+    catsum[,1] <- c("急性淋巴细胞白血病", "急性髓细胞白血病",
+                       "霍奇金淋巴瘤", "骨髓增生异常综合征",
+                       "骨髓增殖性肿瘤", "非霍奇金淋巴瘤",
+                       "NK/T细胞肿瘤", "其他")
+    kable(catsum,
+          col.names = c("疾病种类","例数","百分比（%）"),
+          caption = "Table 2.1: Number of cases according 
+                    to disease categories")
+```
+
+#### 表2.2：急性淋巴细胞白血病的疾病构成
+```{r echo=FALSE}
+    allsum <- with(data[data$catcode == "ALL",],
+                   as.data.frame(table(dxcode)))
+    allsum$ratio <- round(allsum[,2]/sum(allsum[,2])*100,1)
+    allsum[,1] <- c("伴E2A基因突变","伴MLL基因突变","Ph阳性急淋",
+                    "伴TEL基因突变","T淋巴母细胞淋巴瘤/白血病","急淋NOS")
+    kable(allsum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 2.2 Number of cases with acute lymphoblastic leukemia")
+```
+
+#### 表2.3：急性髓细胞白血病的疾病构成
+```{r echo=FALSE}
+    amlsum <- with(data[data$catcode == "AML",],
+                   as.data.frame(table(dxcode)))
+    amlsum$ratio <- round(amlsum[,2]/sum(amlsum[,2])*100,1)
+    amlsum[,1] <- c("系列不明的白血病","早幼粒细胞白血病","伴CBFβ/MYH突变",
+                    "伴CEBPa突变","伴AML1/ETO阳性","伴有MLL重排",
+                    "急髓NOS","伴有NPM1插入突变","粒细胞肉瘤","MDS转化")
+    kable(amlsum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 2.3 Number of cases with acute myeloid leukemia")
+```
+
+#### 表2.4：霍奇金淋巴瘤的疾病构成
+```{r echo=FALSE}
+    hlsum <- with(data[data$catcode == "HL",],
+                   as.data.frame(table(dxcode)))
+    hlsum$ratio <- round(hlsum[,2]/sum(hlsum[,2])*100,1)
+    hlsum[,1] <- c("淋巴细胞丰富型","混合细胞型","结节性淋巴细胞为主型",
+                    "未分类","结节硬化型")
+    kable(hlsum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 2.4 Number of cases with Hodgkin Lymphoma")
+```
+
+#### 表2.5：骨髓增生异常综合征的疾病构成
+```{r echo=FALSE}
+    mdssum <- with(data[data$catcode == "MDS",],
+                   as.data.frame(table(dxcode)))
+    mdssum$ratio <- round(mdssum[,2]/sum(mdssum[,2])*100,1)
+    mdssum[,1] <- c("5q-综合征",
+                    "RAEB-I型",
+                    "RAEB-II型",
+                    "伴铁粒幼细胞增多",
+                    "伴多系病态造血",
+                    "伴单系病态造血",
+                    "未分类")
+    kable(mdssum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 2.5 Number of cases with myeloid dyplasia
+          syndrome")
+```
+
+#### 表2.6：骨髓增殖性肿瘤的疾病构成
+```{r echo=FALSE}
+    mpnsum <- with(data[data$catcode == "MPN",],
+                   as.data.frame(table(dxcode)))
+    mpnsum$ratio <- round(mpnsum[,2]/sum(mpnsum[,2])*100,1)
+    mpnsum[,1] <- c("慢性粒细胞白血病",
+                    "慢性粒单核细胞白血病",
+                    "嗜酸细胞增多症",
+                    "原发性血小板增多",
+                    "Langerhans细胞增多症",
+                    "组织细胞增多症",
+                    "原发性骨髓纤维化",
+                    "真性红细胞增多",
+                    "未分类")
+    kable(mpnsum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 3.5 Number of cases with myeloid proliferative
+          neoplasm")
+```
+
+#### 表2.7：成熟B细胞淋巴瘤的疾病构成
+```{r echo=FALSE}
+    nhlsum <- with(data[data$catcode == "NHL",],
+                   as.data.frame(table(dxcode)))
+    nhlsum$ratio <- round(nhlsum[,2]/sum(nhlsum[,2])*100,1)
+    nhlsum[,1] <- c("?",
+                    "Burkit淋巴瘤",
+                    "慢性淋巴细胞白血病",
+                    "中枢神经系统淋巴瘤",
+                    "弥漫大B细胞淋巴瘤",
+                    "滤泡细胞淋巴瘤",
+                    "粘膜相关淋巴瘤",
+                    "套细胞淋巴瘤",
+                    "克隆性浆细胞病",
+                    "边缘带淋巴瘤",
+                    "华氏巨球蛋白血症")
+    kable(nhlsum[-1,],
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 2.7 Number of cases with B-cell lymphoma")
+```
+
+#### 表2.8：NK/T细胞恶性肿瘤的疾病构成
+```{r echo=FALSE}
+    nktsum <- with(data[data$catcode == "NKT",],
+                   as.data.frame(table(dxcode)))
+    nktsum$ratio <- round(nktsum[,2]/sum(nktsum[,2])*100,1)
+    nktsum[,1] <- c("大颗粒淋巴细胞白血病",
+                    "NK细胞白血病",
+                    "结外鼻型NK/T淋巴瘤",
+                    "血管免疫母细胞型",
+                    "间变大细胞型",
+                    "ALK+间变",
+                    "EBV相关淋巴细胞增殖性疾病",
+                    "肝脾T细胞淋巴瘤",
+                    "外周T非特指",
+                    "T细胞幼淋")
+    kable(nktsum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 3.4 Number of cases with NK/T cell lymphoma")
+```
+
+#### 表2.9：非肿瘤性疾病的疾病构成
+```{r echo=FALSE}
+    othersum <- with(data[data$catcode == "other",],
+                   as.data.frame(table(dxcode)))
+    othersum$ratio <- round(othersum[,2]/sum(othersum[,2])*100,1)
+    othersum[,1] <- c("再生障碍性贫血","获得性凝血功能障碍",
+                      "自身免疫性溶血性贫血","Castleman病",
+                      "Cog","弥漫性血管内凝血",
+                      "深静脉血栓","噬血细胞综合征",
+                      "血友病","免疫性血小板减少",
+                      "巨幼细胞性贫血","其他",
+                      "阵发性睡眠性血红蛋白尿","纯红再障",
+                      "地中海贫血","血栓性血小板减少性紫癜")
+    kable(othersum,
+          col.names = c("诊断","例数","百分比（%）"),
+          caption = "Table 3.9 Number of cases with non-malignant 
+                    hematological disorders")
+```
+
+### 3. 入组患者人口学特征
+
+#### 3.1 年龄分布
+已入组患者中位年龄 `r median(age)` 岁，平均年龄 `r round(mean(age),1)` 岁。性别构成，男性 `r length(gender[gender == "男"])` 例，女性 `r length(gender[gender == "女"])` 例，所占比例分别为`r round(prop.table(table(data$gender))[1]*100,1)` %以及 `r round(prop.table(table(data$gender))[2]*100,1)` %。 
+
+#### 图3.1 总体年龄分布     
+```{r, echo=FALSE, fig.height=4,fig.width=5}
+    hist(age,
+        main = "",
+        sub = "Figure 2.1",
+        breaks=seq(0,100,10),
+        cex.axis = 0.8,
+        cex.sub = 0.8)
+```
+
+#### 图3.2 不同性别年龄分布
+```{r, echo=FALSE, fig.height=4,fig.width=5}
+    densityplot(~age|gender, data,
+                sub = "Figure 2.2") 
+```
+
+#### 图3.3 各个疾病类型的年龄分布
+```{r, echo=FALSE, fig.height=8, fig.width=8}
+histogram(~age|catcode,data,
+        layout=c(3,3),
+        as.table=T,
+        sub = "Figure 2.3")
+```
+
+#### 图3.4 不同性别各疾病分类的年龄分布
+```{r, echo=FALSE, fig.height=8, fig.width=8}
+densityplot(~age|gender*catcode,data,
+            layout=c(4,4),
+            as.table=T,
+            sub = "Figure 2.4")
+```
+
+#### 表3.1: 不同性别患者的病种分布
+```{r echo=FALSE}
+    catgender <- as.data.frame(table(gender,catcode))
+    kable(dcast(catgender,
+                gender~catcode,
+                value.var = "Freq"))
+```
+
+#### 表3.2: 不同病种的中位年龄和平均年龄
+```{r echo=FALSE}
+    catmedian <- as.data.frame(tapply(age,catcode,median))
+    catmean <- as.data.frame(round(tapply(age,catcode,mean),1))
+    catage <- cbind(catmedian,catmean)
+    colnames(catage) <- c("中位年龄（岁）","平均年龄（岁）")
+    kable(catage)
+```
+
+#### 3.2 民族构成
+
+入组患者涉及`r length(levels(as.factor(data$race)))`个民族，分布情况见表3.3。排名前三的少数民族分别为藏族、彝族和羌族。
+
+#### 表3.3：收治患者的民族构成
+
+```{r echo=FALSE}
+    racetable <- as.data.frame(sort(table(data$race),
+                                    decreasing = T))
+    racetable$ratio <- round(racetable[,1]/length(data$race)*100,2)
+    colnames(racetable) <- c("例数","比例 %")
+    kable(racetable)
+```
+
+### 4. 收治病患的变化趋势
+住院部收治的最常见初诊初治的疾病分布情况如表4.1所示。
+
+#### 表4.1: 收治最多的20种疾病
+
+```{r echo=FALSE}
+    top20 <- as.data.frame(sort(table(dxcode),decreasing = T)[c(1:20)])
+    top20$ratio <- round(top20[,1]/length(dxcode)*100,2)
+    colnames(top20) <- c("例数","比例（%）")
+    kable(top20,caption = "Table 4.1: Top 20 most frequently treated disease")
+```
+
+各个疾病分类，不同年份确诊并入院的例数如表4.2所示。
+
+#### 表4.2: 按年份收治病种情况
+
+```{r, echo=FALSE}
+    catyear <- with(data,
+                    tapply(gender,list(inyear,catcode),length))
+    kable(catyear,
+          caption = "Table 4.2: Disease categories versus year",
+          na.rm=T)
+```
+
+各个疾病不同年份的收治情况如表4.3所示：
+
+#### 表4.3: 急性淋巴细胞白血病（ALL）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    allyear <- with(data[catcode == "ALL",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(allyear,
+          col.names = c("伴E2A/PBX1突变","伴MLL重排","Ph阳性ALL",
+                        "TEL/AML1突变","T淋巴母白血病/淋巴瘤",
+                        "急性淋巴细胞白血病NOS"),
+          caption = "Table 4.3: Enrollment of acute lymphoblastic leukemia according to inpatient years")
+```
+
+#### 表4.4: 急性髓细胞白血病（AML）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    amlyear <- with(data[catcode == "AML",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(amlyear,
+          col.names = c("混白","早幼粒",
+                        "CBFβ/MYH","CEBPa",
+                        "AML1/ETO","MLL重排",
+                        "急髓NOS","NPM1突变",
+                        "粒细胞肉瘤","MDS转化"),
+          caption = "Table 4.4: Enrollment of acute myeloid leukemia according to inpatient years")
+```
+
+#### 表4.5: 霍奇金淋巴瘤（HL）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    hlyear <- with(data[catcode == "HL",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(hlyear,
+          col.names = c("淋巴细胞丰富型","混合细胞型",
+                        "结节性淋巴细胞为主型",
+                        "未分类","结节硬化型"),
+          caption = "Table 4.5: Enrollment of Hodgkin lymphoma according to inpatient years")
+```
+
+#### 表4.6: 骨髓增生异常综合征（MDS）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    mdsyear <- with(data[catcode == "MDS",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(mdsyear,
+          col.names = c("5q-综合征",
+                    "RAEB-I型",
+                    "RAEB-II型",
+                    "伴铁粒幼细胞增多",
+                    "伴多系病态造血",
+                    "伴单系病态造血",
+                    "未分类"),
+          caption = "Table 4.6: Enrollment of myelodysplastic syndrome according to inpatient years")
+```
+
+#### 表4.7: 骨髓增殖性肿瘤（MPN）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    mpnyear <- with(data[catcode == "MPN",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(mpnyear,
+          col.names = c("慢性粒细胞白血病",
+                    "慢性粒单核细胞白血病",
+                    "嗜酸细胞增多症",
+                    "原发性血小板增多",
+                    "Langerhans细胞增多症",
+                    "组织细胞增多症",
+                    "原发性骨髓纤维化",
+                    "真性红细胞增多",
+                    "未分类"),
+          caption = "Table 4.7: Enrollment of myelodysplastic syndrome according to inpatient years")
+```
+
+#### 表4.8: 成熟B细胞肿瘤（B-NHL）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    nhlyear <- with(data[catcode == "NHL",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(nhlyear,
+          col.names = c("?",
+                    "Burkit淋巴瘤",
+                    "CLL",
+                    "中枢神经系统淋巴瘤",
+                    "弥漫大B",
+                    "滤泡",
+                    "MALT",
+                    "套细胞淋巴瘤",
+                    "浆细胞",
+                    "边缘带",
+                    "华氏巨球"),
+          caption = "Table 4.8: Enrollment of mature B cell lymphoma according to inpatient years")
+```
+
+#### 表4.9: NK/T细胞淋巴瘤（NK/T）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    nktyear <- with(data[catcode == "NKT",],
+                    tapply(inyear,list(inyear,dxcode),length))
+    kable(nktyear,
+          col.names = c("大颗粒淋巴细胞白血病",
+                    "NK细胞白血病",
+                    "结外鼻型NK/T淋巴瘤",
+                    "血管免疫母细胞型",
+                    "间变大细胞型",
+                    "ALK+间变",
+                    "EBV相关淋巴细胞增殖性疾病",
+                    "肝脾T细胞淋巴瘤",
+                    "外周T非特指",
+                    "T细胞幼淋"),
+          caption = "Table 4.9: Enrollment of NK/T cell lymphoma according to inpatient years")
+```
+
+#### 表4.10:  非肿瘤性血液病（MISC）各病种按年份的收治情况
+
+```{r, echo=FALSE}
+    otheryear <- with(data[catcode == "other",],
+                    tapply(inyear,list(dxcode,inyear),length))
+    rownames(otheryear) <- c("再生障碍性贫血",
+                            "DIC",
+                            "自免溶贫",
+                            "Castleman病",
+                            "Cog",
+                            "弥漫性血管内凝血",
+                            "深静脉血栓",
+                            "HLH",
+                            "血友病",
+                            "ITP",
+                            "巨幼贫",
+                            "其他",
+                            "PNH",
+                            "纯红再障",
+                            "地中海贫血",
+                            "TTP")
+    kable(otheryear,
+          caption = "Table 4.10: Enrollment of non-malignant 
+          hematological disorders according to inpatient years")
+```
+
+### 5. 住院时间
+
+data$hospstay <- as.integer(as.Date(outdate) - as.Date(indate))
+errordays <- which(data$hospstay < 0)
+round(mean(data$hospstay[-errordays],na.rm=T),1)
+median(data$hospstay[-errordays],na.rm=T)
+densityplot(data$hospstay[-errordays])
+densityplot(~hospstay|catcode,data[-errordays,])
+with(data[-errordays,],
+    tapply(hospstay,
+           catcode,
+           FUN = function(x) {round(mean(x,na.rm=T),1)}))
+with(data[-errordays,],
+     tapply(hospstay,
+            catcode, 
+            FUN = function(x) {median(x,na.rm=T)}))
+                
+                
